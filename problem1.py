@@ -20,7 +20,7 @@ def Terms_and_Conditions():
     '''
     #****************************************
     #* CHANGE CODE HERE
-    Read_and_Agree = False  #if you have read and agree with the term above, change "False" to "True".
+    Read_and_Agree = True  #if you have read and agree with the term above, change "False" to "True".
     #****************************************
     return Read_and_Agree
 
@@ -106,7 +106,11 @@ class TicTacToe(BoardGame):
         '''
         #########################################
         ## INSERT YOUR CODE HERE
-
+        m = []
+        for ridx, row in enumerate(s.b):
+            for cidx, val in enumerate(row):
+                if val == 0:
+                    m.append((ridx,cidx))
 
         #########################################
         return m
@@ -138,20 +142,26 @@ class TicTacToe(BoardGame):
         '''
         #########################################
         ## INSERT YOUR CODE HERE
+        for row in s.b:
+            if sum(row) == 3:
+                return 1
+            elif sum(row) == -3:
+                return -1
 
+        for i in range(3):  # columns
+            if sum([s.b[0,i], s.b[1,i], s.b[2,i],]) == 3:
+                return 1
+            elif sum([s.b[0,i], s.b[1,i], s.b[2,i],]) == -3:
+                return -1
 
+        if sum([s.b[0,0], s.b[1,1], s.b[2,2]]) == 3 or sum([s.b[0,2], s.b[1,1], s.b[2,0]]) == 3:
+            return 1
+        elif sum([s.b[0,0], s.b[1,1], s.b[2,2]]) == -3 or sum([s.b[0,2], s.b[1,1], s.b[2,0]]) == -3:
+            return -1
+        if not any(0 in b for b in s.b):
+            return 0  # draw
+        return None
 
-        # check the 8 lines in the board to see if the game has ended.
-
-
-        # if the game has ended, return the game result 
-
-
-
-
-
-
-        # if the game has not ended, return None
 
         #########################################
         return e
@@ -245,11 +255,10 @@ class RandomPlayer(Player):
         '''
         #########################################
         ## INSERT YOUR CODE HERE
-
         # find all valid moves in the current game state
-
+        m = g.get_valid_moves(s)
         # randomly choose one valid move
-
+        r, c = m.pop(np.random.randint(0, len(m)))
 
         #########################################
         return r,c
@@ -492,13 +501,10 @@ class MMNode(Node):
         ## INSERT YOUR CODE HERE
 
         # get the list of valid next move-state pairs from the current game state
+        msps = g.get_move_state_pairs(self.s)
 
-
-        # expand the node with one level of children nodes 
-
-            # for each next move m and game state s, create a child node
-
-            # append the child node the child list of the current node 
+        for tu in msps:
+            self.c.append(MMNode(s=tu[1], p=self, m=tu[0]))
 
         #########################################
 
@@ -676,10 +682,10 @@ class MMNode(Node):
         '''
         #########################################
         ## INSERT YOUR CODE HERE
-
-        # if the game in the current state has not ended yet 
-
-            #expand the current node by one-level of children nodes
+        if g.check_game(self.s) is None:
+            self.expand(g)
+        for cn in self.c:
+            cn.build_tree(g)
 
             # recursion: for each child node, call build_tree() function 
             # to build a subtree rooted from each child node
@@ -695,6 +701,9 @@ class MMNode(Node):
 
     # ----------------------------------------------
     def compute_v(self,g):
+        def evaluate_node_value(node):
+            return node.v
+
         '''
             Given a fully-built tree, compute optimal values of the all the nodes in the tree using minimax algorithm
             Here we assume that the whole search-tree is fully grown, but no value on any node has been computed yet before calling this function.
@@ -844,15 +853,24 @@ class MMNode(Node):
         #########################################
         ## INSERT YOUR CODE HERE
         # (1) if the game has already ended, the value of the node is the game result 
+        if g.check_game(self.s) is not None:
+            self.v = g.check_game(self.s)
+        else:
+            for child in self.c:
+                child.compute_v(g)
+            if self.s.x == 1:
+                l = []
+                for c in self.c:
+                    l.append(c.v)
+                self.v = max(l)
+            elif self.s.x == -1:
+                l = []
+                for c in self.c:
+                    l.append(c.v)
+                self.v = min(l)
 
-
-
-
-
-        # (2) if the game has not ended yet: 
-        #   (2.1)first compute values of all children nodes recursively by calling compute_v() in each child node
-
-
+        # # (2) if the game has not ended yet:
+        # #   (2.1)first compute values of all children nodes recursively by calling compute_v() in each child node
 
 
         #   (2.2) now the values of all the children nodes are computed, let's compute the value of the current node:
@@ -931,10 +949,15 @@ class MiniMaxPlayer(Player):
         '''
         #########################################
         ## INSERT YOUR CODE HERE
-
-
-
-
+        best = n.c[0]
+        for child in n.c:
+            if n.s.x == 1:
+                if child.v > best.v:
+                    best = child
+            elif n.s.x == -1:
+                if child.v < best.v:
+                    best = child
+        (r, c) = best.m
 
         #########################################
         return r,c
@@ -970,14 +993,16 @@ class MiniMaxPlayer(Player):
         ## INSERT YOUR CODE HERE
 
         # (1) build a search tree with the current game state as the root node
+        baseNode = MMNode(s)
 
+        baseNode.build_tree(g)
 
 
         # (2) compute values of all tree nodes
-
+        baseNode.compute_v(g)
 
         # (3) choose the optimal next move
-
+        r,c = self.choose_optimal_move(baseNode)
         #########################################
         return r,c
 
